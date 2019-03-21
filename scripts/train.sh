@@ -1,0 +1,1 @@
+python main.py -e maskrcnn_pascal_stage1 -m train -logs 1
