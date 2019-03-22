@@ -3,7 +3,7 @@ import glob
 from importlib import import_module
 
 fnameList = glob.glob(dirname(__file__)+"/*.py")
-# fnameList += glob.glob(dirname(__file__)+"/*/*.py")
+fnameList += glob.glob(dirname(__file__)+"/*/*.py")
 
 
 # module = import_module("{}.{}".format(module_name, mName))
@@ -15,7 +15,6 @@ for fname in fnameList:
     i = fname.find("datasets")
 
     mname = fname[i:].replace(".py","").replace("/",".")
-
     __all__ += [import_module(mname)]
 
 

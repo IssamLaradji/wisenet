@@ -1,95 +1,51 @@
-import misc as ms 
-import subprocess
-import time
-def get_borgy_script():
-  borgy_script = r'''
-  borgy submit --gpu=1 --cpu=4 --mem=20  \
-              -v /mnt/home/issam:/mnt/home/issam\
-              -v /mnt/datasets:/mnt/datasets\
-              -v /mnt/projects/counting:/mnt/projects/counting\
-              -i images.borgy.elementai.lan/issam.laradji/maskrcnn \
-              -w work_directory \
-              --restartable \
-              --name issam -- /bin/bash -c borgy_command
-  '''
- 
-  return borgy_script
 
 
-def get_borgy_command(main_dict, mode):
-  config_name = main_dict["config_name"]
-  metric_name = main_dict["metric_name"]
-  model_name = main_dict["model_name"]
-  dataset_name = main_dict["dataset_name"]
+import torch
+import main
+import pandas as pd
+import argparse
+import numpy as np
+from itertools import product
 
-  argList = ("-m {} -c {} -metric {} -model {}"
-              " -d {} -br {}".format(
-                            mode, config_name, metric_name,
-                            model_name, dataset_name,
-                             1))
-
-  argString = " ".join(argList.split())
-  
-
-  # tmp_mode = " %s " % extract(argString, "-mode")
-  # argString = argString.replace(tmp_mode, " %s " % mode)
-
-  command = "python main.py %s" % argString  
-
-  return command 
-
+import experiments
 import os
 
-def borgy_submit(main_dict, mode, reset, global_prompt="y"):
-  
-  if reset == 1:
+def borgy_submit(project_name, global_prompt, mode, config_name, 
+                            metric_name, model_name,
+                            dataset_name, loss_name, reset,
+                            predict_method):
+  command = get_borgy_command(mode, config_name, 
+                            metric_name, model_name,
+                            dataset_name, loss_name, reset,
+                            predict_method)
+        
+  print(command)
 
-    borgy_kill(main_dict, mode)
-    ms.delete_path_save(main_dict)
-
-    # copy code
-
-
-
-  command = get_borgy_command(main_dict, mode)
   job_id, job_state = get_job_id(command)
 
   if job_is_running(job_state):
     return "%s - %s" % (job_state, job_id)
 
   else:
-    # delete
-    code_path = main_dict["path_save"] + "/code"
-    if os.path.exists(code_path):
-      ms.remove_dir(code_path)
+    if global_prompt != "y":
+      prompt = input("Do you want to borgy submit the command:"
+             " \n'%s' ? \n(y/n)\n" % command) 
+    if global_prompt == "y" or prompt == "y":            
+      # if not su.is_exist_train(main_dict):     
 
-  
-    ms.create_dirs(code_path + "/tmp")
-    copy_code = "cp -r * "\
-              "%s" % code_path
-
-    subprocess.call([copy_code], shell=True)
-    time.sleep(0.5)
-
-    work_directory = main_dict["path_save"] + "/code"
-
-    borgy_script = get_borgy_script().replace("work_directory", work_directory)
-    borgy_command = borgy_script.replace("borgy_command",  '"%s"' % command)
+      submit(command, project_name=project_name, prompt=False)
+      job_id, job_state = get_job_id(command)
+      return  "%s - %s" % (job_state, job_id)
 
 
-    subprocess.call([borgy_command], shell=True)
-    job_id, job_state = get_job_id(command)
-
-    print(command)
-    return  "%s - %s" % (job_state, job_id)
-
-   
-      
-      
-
-
-def borgy_status(main_dict, mode):
-    command = get_borgy_command(main_dict, mode)
+def borgy_status(mode, config_name, 
+                        metric_name, model_name,
+                        dataset_name, loss_name, reset,
+                            predict_method):
+    command = get_borgy_command(mode, config_name, 
+                        metric_name, model_name,
+                        dataset_name, loss_name, reset,
+                            predict_method)
     
     # print(command)
 
@@ -97,27 +53,44 @@ def borgy_status(main_dict, mode):
     job_id, job_state = get_job_id(command)
     return "%s - %s" % (job_state, job_id)
 
-def borgy_kill(main_dict, mode):
-    command = get_borgy_command(main_dict, mode)
+def borgy_kill(mode, config_name, 
+                        metric_name, model_name,
+                        dataset_name, loss_name, reset,
+                            predict_method):
+    command = get_borgy_command(mode, config_name, 
+                        metric_name, model_name,
+                        dataset_name, loss_name, reset,
+                            predict_method)
     
     # print(command)
 
     job_id, job_state = get_job_id(command)
     kill(job_id, force=True)  
-    print("\n KILLED: {}\n".format(job_id))
+    print("{}".format(job_id))
     return "KILLED %s - %s" % (job_state, job_id) 
     
 
-def borgy_logs(main_dict, mode):
-    command = get_borgy_command(main_dict, mode)
-    
-    # print(command)
-
-    job_id, job_state = get_job_id(command)
-    subprocess.call(["borgy logs %s" % job_id], shell=True)
-    # return "KILLED %s - %s" % (job_state, job_id) 
 
 
+
+
+
+### MISC
+def command():
+  pass
+
+def get_borgy_script(project_name):
+  borgy_script = r'''
+  borgy submit --req-gpus=1 --req-cores=2 --req-ram-gbytes=20  \
+              -v /mnt:/mnt -v /mnt/datasets:/mnt/datasets\
+              -v /mnt/projects/counting:/mnt/projects/counting\
+              -i images.borgy.elementai.lan/issam.laradji/v1 \
+              -w /home/issam/Research_Ground/End2End/ \
+              --name issam -- /bin/bash -c command
+  '''
+  
+  borgy_script = borgy_script.replace("End2End", project_name)
+  return borgy_script
 
 
 
@@ -136,49 +109,45 @@ def is_same(cmd, b_cmd):
   b_cmd = b_cmd[b_cmd.find("-c")+3:]
 
   flag = True
-  # for el in ["-d", "-c", "-mode", "-l", "-m", "-model", "-metric"]:
-  for el in ["-d", "-m", "-c", "-model","-metric"]:
+  for el in ["-d", "-c", "-me", "-mode", "-l", "-m", "-model", "-metric", "-p"]:
 
     if extract(cmd, el) != extract(b_cmd, el):
       return False
 
+
+
+
   return flag
 
 def get_job_id(command):
-    cmdList = run_bash_command("borgy ps").split("\\n")
+    cmdList = run_bash_command("borgy ps | grep RUNNING").split("\\n")
     
     jobid = None
     status = None
     jobid_failed = None
     status_failed = None
 
-    matchList = {}
-    matchList["recent"] = []
     for cmd in cmdList:
-      # print(cmd)
-      if len(cmd.split()[:4]) == 4:
-        jobid, status, user, time = cmd.split()[:4]
-        # print(jobid)
-    
-      else:
-        continue
+      try:
+        tmp_jobid, tmp_status = cmd.split()[:2]
+      except:
+        continue 
 
-      if is_same(command, cmd):
-        if status in matchList:
-          matchList[status] += [jobid]
-        else:
+      if tmp_status in ["RUNNING", "QUEUED", "QUEUING", "FAILED"]:
+        if is_same(command, cmd):
 
-          matchList[status] = [jobid]
+          if tmp_status == "FAILED":
+            jobid_failed = tmp_jobid
+            status_failed = tmp_status
 
-        matchList["recent"] += [[jobid, status]]
+          else:
+            jobid = tmp_jobid
+            status = tmp_status
 
-
-    if jobid is None or len(matchList["recent"]) == 0:
+    if jobid is None:
       jobid = jobid_failed
       status = status_failed
 
-    else:
-      jobid, status = matchList["recent"][0]
     return jobid, status
 
 
@@ -186,10 +155,34 @@ def job_is_running(job_state):
   return job_state in  ["RUNNING", "QUEUED", "QUEUING"]
 
 
-
+import subprocess
 def borgy_display(jobid):
     subprocess.call(["borgy logs %s" % jobid], shell=True)
 
+
+def submit(command, project_name, prompt=False):
+  jobid, job_state = get_job_id(command)
+
+  if job_is_running(job_state):
+    return "Already Running"  
+
+
+  borgy_script = get_borgy_script(project_name)
+
+  cmm = borgy_script.replace("command",  '"%s"' % command)
+
+  if prompt is False:
+    subprocess.call([cmm], shell=True)
+    return "Soon"
+
+  else:
+    prompt = input("Do you want to borgy submit the command:"
+                   " \n'%s' ? \n(y/n)\n" % command) 
+    if prompt == "y":
+      subprocess.call([cmm], shell=True)
+      return "Soon"
+
+  return "Skipped"
 
 def kill(jobid, force=False):
     if jobid is None:
@@ -230,6 +223,24 @@ def extract(cmd, which="-p"):
         return sb[:next_space].strip()
 
 
+
+def get_borgy_command(mode, config_name, metric_name, model_name, dataset_name, loss_name, reset,
+                            predict_method):
+  argList = ("-m {} -c {} -metric {} -model {}"
+              " -d {} -l {} -br {} -r {} -p {}".format(
+                            mode, config_name, metric_name,
+                            model_name, dataset_name,
+                            loss_name, 1, reset, predict_method))
+
+  argString = " ".join(argList.split())
+  
+
+  # tmp_mode = " %s " % extract(argString, "-mode")
+  # argString = argString.replace(tmp_mode, " %s " % mode)
+
+  command = "python main.py %s" % argString
+
+  return command 
 
 
 # def get_train_command(argList):

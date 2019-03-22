@@ -76,7 +76,6 @@ import pycocotools._mask as _mask
 iou         = _mask.iou
 merge       = _mask.merge
 frPyObjects = _mask.frPyObjects
-frPoly = _mask.frPoly
 
 def encode(bimask):
     if len(bimask.shape) == 3:

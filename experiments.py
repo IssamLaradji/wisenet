@@ -1,224 +1,964 @@
-import os
-from itertools import product
-from importlib import import_module
-import configs
-
-def get_experiment_dict(args, exp_name=None):
-    # SEGMENTATION DA SEG
-    expAll = {
 
 
-    "wisenet_cp_iou":
-        {
-            "modelList": ["TwoHeads_iou"],
-            "configList": ["basic_train"],
-            "datasetList": ["CityScapesObject"],
-            "metricList": ["AP50_segm"],
-            "epochs": 1000
-        },
+"""
+if 1:
+    ls = []
+    for i in range(-3,4): 
+        for j in range(-3,4): 
+            ls += ["twoheads_%d_%d" % (i,j)]
+"""
+def get_experiment_dict(args, exp_name):
+        
+        exp_dict = {"modelList":None,
+                    "configList": None,
+                    "lossList": None,
+                    "datasetList": None,
+                    "metricList": None,
 
-    "wisenet_kitti_sharp":
-        {
-            "modelList": ["TwoHeads_sharpmask"],
-            "configList": ["basic_train"],
-            "datasetList": ["Kitti"],
-            "metricList": ["AP50_segm"],
-            "epochs": 1000
-        },
+                    "epochs":1000}
 
-    "wisenet_kitti_cosine":
-        {
-            "modelList": ["TwoHeads_cosine"],
-            "configList": ["basic_train"],
-            "datasetList": ["Kitti"],
-            "metricList": ["AP50_segm"],
-            "epochs": 1000
-        },
-
-    "wisenet_kitti":
-        {
-            "modelList": ["TwoHeads"],
-            "configList": ["basic_train"],
-            "datasetList": ["Kitti"],
-            "metricList": ["AP50_segm"],
-            "epochs": 1000
-        }
-    }
-
-    if exp_name not in expAll:
-        exp_dict = {
-            "modelList": None,
-            "configList": None,
-            "datasetList": None,
-            "metricList": None,
-            "epochs": 1000
-    }
-    else:
-        exp_dict = expAll[exp_name]
-    # Override if needed
-    exp_dict["configList"] = args.configList or exp_dict["configList"]
-    exp_dict["metricList"] = args.metricList or exp_dict["metricList"]
-    exp_dict["datasetList"] = args.datasetList or exp_dict["datasetList"]
-    exp_dict["modelList"] = args.modelList or exp_dict["modelList"]
-    
-    return exp_dict
+        if exp_name == "affinity_pascal":
+            exp_dict = {"modelList":["AffinityNet"],
+                        "configList": ["noFlip"],
+                        "lossList": ["AffinityLoss"],
+                        "datasetList": ["PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
 
 
-def get_main_dict_list(args, exp_name, mode):
+        if exp_name == "prm_original":
+            exp_dict = {"modelList":["PRM"],
+                        "configList": ["noFlip"],
+                        "lossList": ["PRMLoss"],
+                        "datasetList": ["PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
 
-    exp_dict = get_experiment_dict(args, exp_name)
+        if exp_name == "lcfcn_bo":
+            exp_dict = {"modelList":["LCFCN_BO", "LCFCN_Pyramid","LCFCN_Dilated"],
+                        "configList": ["wtp"],
+                        "lossList": ["lcfcnLoss"],
+                        "datasetList": ["Pascal2012","Plants", "CocoDetection2014", "CityScapes", "Kitti"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":100}
 
-    # Get Main Class
-    project_name = os.path.realpath(__file__).split("/")[-2]
-    MC = MainClass(
-        path_models="models",
-        path_datasets="datasets",
-        path_metrics="metrics",
-        path_samplers="addons/samplers.py",
-        path_transforms="addons/transforms.py",
-        path_saves="/mnt/projects/counting/Saves/main/iccv/",
-        project=project_name)
+        if exp_name == "lcfcn_bo_cp":
+            exp_dict = {"modelList":["TwoHeads_mIoU"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadRBFLoss"],
+                        "datasetList": ["CityScapesObject"],
+                        "metricList": ["mIoU"],
+                        "predictList": ["BestDice"],
+                        "epochs":100}
+                       
 
-    main_dict_list = []
+        if exp_name == "wiseaffinity":
+            exp_dict = {"modelList":["WiseAffinity"],
+                        "configList": ["noFlip"],
+                        "lossList": ["wiseaffinity_loss"],
+                        "datasetList": ["PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":100}
+                       
 
-    for model_name, config_name, metric_name, dataset_name in product(
-            exp_dict["modelList"], exp_dict["configList"],
-            exp_dict["metricList"], exp_dict["datasetList"]):
+        if exp_name == "lcfcn_bo_coco":
+            exp_dict = {"modelList":["LCFCN_BO", "LCFCN_Pyramid"],
+                        "configList": ["noFlip"],
+                        "lossList": ["lcfcnLoss"],
+                        "datasetList": ["Plants", "CocoDetection2014", "CityScapes", "Kitti"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":100}
+                       
 
+        if exp_name == "lcfcn_reg":
+            exp_dict = {"modelList":["LCFCN_Regularized"],
+                        "configList": ["wtp"],
+                        "lossList": ["lcfcnRegularizedLoss"],
+                        "datasetList": ["Pascal2012", "PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":100}
 
-        config = configs.get_config_dict(config_name)
-
-        # if key in key_set:
-        #     continue
-
-        # key_set.add(key)
-        main_dict = MC.get_main_dict(
-            mode, dataset_name, model_name, config_name, config, args.reset,
-            exp_dict["epochs"], metric_name=metric_name)
-        main_dict["config"] = config
-        # main_dict["exp_dict"] = exp_dict
-
-        main_dict_list += [main_dict]
-
-    return main_dict_list
-
-
-def get_module_classes(module_name):
-    import inspect
-
-    mod_dict = {}
-
-    modList = import_module("{}.__init__".format(module_name)).__all__
-
-    for module in modList:
-        funcs = get_functions(module)
-        for name in funcs:
-            val = funcs[name]
-
-            if not inspect.isclass(val):
-                continue
-
-            if (name in mod_dict and module_name in str(val.__module__)):
-                if name != "Pascal2012":
-                    raise ValueError("repeated %s" % name)
-                print("Repeated:", name)
-            mod_dict[name] = val
-
-    return mod_dict
-
-
-# Main dict
-class MainClass:
-    def __init__(self, path_datasets, path_models, path_samplers,
-                 path_transforms, path_metrics, path_saves,
-                 project):
-        self.path_datasets = path_datasets
-        self.path_saves = path_saves
-        self.dataset_dict = get_module_classes(path_datasets)
-
-        self.metric_dict = get_module_classes(path_metrics)
-        self.model_dict = get_module_classes(path_models)
-
-        self.sampler_dict = get_functions(path_samplers)
-        self.transform_dict = get_functions(path_transforms)
-        self.project = project
+        # if exp_name == "lcfcn_bo":
+        #     exp_dict = {"modelList":["LCFCN_BO"],
+        #                 "configList": ["wtp"],
+        #                 "lossList": ["lcfcnLoss"],
+        #                 "datasetList": ["PascalOriginal"],
+        #                 "metricList": ["MAE"],
+        #                 "predictList": ["BestDice"],
+        #                 "epochs":200}
 
 
-        # DATASETS
+        if exp_name == "maskrcnn_gt":
+            exp_dict = {"modelList":["MaskRCNN"],
+                        "configList": ["noFlip_gt"],
+                        "lossList": ["MaskRCNNLoss_gt"],
+                        "datasetList": [ 
+                                        "Pascal_122"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
 
-    def get_main_dict(self,
-                      mode,
-                      dataset_name,
-                      model_name,
-                      config_name,
-                      config,
-                      reset,
-                      epochs,
-                      metric_name,
-                      gpu=None):
-
-        main_dict = config
-        # main_dict["exp_name"] = exp_name
-        main_dict["config_name"] = config_name
-        main_dict["model_name"] = model_name
-        main_dict["metric_name"] = metric_name
-        main_dict["dataset_name"] = dataset_name
-        main_dict["epochs"] = epochs
-        main_dict["reset"] = reset
-        main_dict["project_name"] = self.project
-        main_dict["code_path"] = "/mnt/home/issam/Research_Ground/{}".format(
-            self.project)
-        # GET GPU
-        # set_gpu(gpu)
-        main_dict["key"] = ("{} - {}".format(model_name, config_name),
-                            "{}_({})".format(dataset_name, metric_name))
-        main_dict["path_datasets"] = self.path_datasets
-        main_dict["exp_id"] = (
-            "dataset:{}_model:{}_metric:{}_config:{}".format(
-                dataset_name, model_name, metric_name, config_name))
-
-        # SAVE
-        main_dict["path_save"] = "{}/{}/".format(self.path_saves,
-                                                 main_dict["exp_id"])
-
-        main_dict["path_summary"] = main_dict["path_save"].replace(
-            "Saves", "Summaries")
-
-        main_dict["metric_dict"] = self.metric_dict
-        main_dict["sampler_dict"] = self.sampler_dict
-        main_dict["model_dict"] = self.model_dict
-        main_dict["dataset_dict"] = self.dataset_dict
-        main_dict["transform_dict"] = self.transform_dict
+        if exp_name == "maskrcnn_sm":
+            exp_dict = {"modelList":["MaskRCNN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["MaskRCNNLoss_sm"],
+                        "datasetList": ["CityScapes", "CocoDetection2014","Kitti", "PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
 
 
-        assert_exist(main_dict["model_name"], self.model_dict)
-        assert_exist(main_dict["metric_name"], self.metric_dict)
-        assert_exist(main_dict["dataset_name"], self.dataset_dict)
+        if exp_name == "onehead_losses":
+            exp_dict = {"modelList":["OneHead"],
+                        "configList": ["wtp"],
+                        "lossList": [ "OneHeadRBFLoss", "OneHeadRBFLoss_withSim"],
+                        "datasetList": ["PascalOriginal", 
+                                        "Pascal_1226"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
 
-        return main_dict
-
-
-def get_functions(module):
-    import importlib
-    if isinstance(module, str):
-        spec = importlib.util.spec_from_file_location("module.name", module)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-    funcs = {}
-    for name, val in module.__dict__.items():
-        if name in funcs:
-            raise ValueError("Repeated func %s" % name)
-
-        if callable(val):
-            funcs[name] = val
-
-    return funcs
+        if exp_name == "onehead_triplet":
+            exp_dict = {"modelList":[ "OneHeadLoc", "OneHead"],
+                        "configList": ["noFlip"],
+                        "lossList": ["TripletLoss"],
+                        "datasetList": ["PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
 
 
-def assert_exist(key, dict):
+        if exp_name == "onehead":
+            exp_dict = {"modelList":[ "OneHead_32", "OneHead_256","OneHead_128", "OneHead", "OneHead_Pyramid"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadSumLoss"],
+                        "datasetList": ["PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
 
-    if key is None:
-        return
-    if key not in dict:
-        raise ValueError("{} does not exist...".format(key))
+
+        if exp_name == "aff":
+            exp_dict = {"modelList":["AFFNet"],
+                        "configList": ["noFlip"],
+                        "lossList": ["AFFLoss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["MAE"],
+                        "epochs":1000}
+
+
+
+        if exp_name == "OneHeadProto":
+            exp_dict = {"modelList":["OneHeadProto_original", "OneHeadProto"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadLoss_prototypes"],
+                        "datasetList": ["Pascal2012", "PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "OneHead_strong":
+            exp_dict = {"modelList":["OneHeadStrong"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadSumLoss"],
+                        "datasetList": ["Pascal2012", "PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "TwoHeads_strong":
+            exp_dict = {"modelList":["TwoHeadsStrong","TwoHeadsStrong101"],
+                        "configList": ["noFlip"],
+                        "lossList": ["TwoHeadLoss_sum", "TwoHeadLoss_9_1"],
+                        "datasetList": ["Pascal2012","PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+
+
+        if exp_name == "TwoHeads_pascal":
+            exp_dict = {"modelList":[ "TwoHeads"],
+                        "configList": ["noFlip"],
+                        "lossList": ["TwoHeadLoss_sum", "TwoHeadLoss_9_1"],
+                        "datasetList": ["Pascal2012","PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "OneHead_original":
+            exp_dict = {"modelList":["OneHead"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadSumLoss"],
+                        "datasetList": ["Pascal2012", "PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "OneHead_pascal":
+            exp_dict = {"modelList":["OneHead"],
+                        "configList": ["noFlip"],
+                        "lossList": [  "OneHeadLocLoss", 
+                                     "OneHeadLoss_tmp"],
+                        "datasetList": ["Pascal2012","PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "maskrcnn_small":
+            exp_dict = {"modelList":["MaskRCNN"],
+                        "configList": ["smallPascal"],
+                        "lossList": ["MaskRCNNLoss_small"],
+                        "datasetList": ["PascalOriginalSmall", "PascalSmall"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "maskrcnn_prm":
+            exp_dict = {"modelList":["MaskRCNN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["MaskRCNNLoss_prm"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+
+
+        if exp_name == "prm":
+            exp_dict = {"modelList":["PRM"],
+                        "configList": ["noFlip"],
+                        "lossList": ["PRMLoss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "gam2":
+            exp_dict = {"modelList":["GAM_DISC"],
+                        "configList": ["basic"],
+                        "lossList": ["GAMDiscOnly"],
+                        "datasetList": ["Trancos"],
+                        "metricList": ["MAE"],
+                        "predictList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "lcfcn_gam":
+            exp_dict = {"modelList":["Res50FCN"],
+                        "configList": ["noFlip2"],
+                        "lossList": ["WeaklyLCFCN_Loss"],
+                        "datasetList": ["Trancos"],
+                        "metricList": ["MAE"],
+                        "predictList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "gam":
+            exp_dict = {"modelList":["GAM"],
+                        "configList": ["basic"],
+                        "lossList": ["GAMLoss", "GAMLoss2"],
+                        "datasetList": ["Trancos"],
+                        "metricList": ["MAE"],
+                        "predictList": ["MAE"],
+                        "epochs":1000}
+
+
+        if exp_name == "maskrcnn_tmp":
+            exp_dict = {"modelList":["MaskRCNN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["MaskRCNNLoss_tmp"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        # if exp_name == "maskrcnn":
+        #     exp_dict = {"modelList":["MaskRCNN"],
+        #                 "configList": ["noFlip"],
+        #                 "lossList": ["MaskRCNNLoss"],
+        #                 "datasetList": ["PascalOriginal", "Pascal2012"],
+        #                 "metricList": ["MAE"],
+        #                 "predictList": ["BestDice"],
+        #                 "epochs":1000}
+
+
+
+        if exp_name == "cam_como":
+            exp_dict = {"modelList":["CAM"],
+                        "configList": ["noFlip"],
+                        "lossList": ["CAMLoss"],
+                        "datasetList": ["ComoLake"],
+                        "metricList": ["MAE"],
+                        "predictList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "cam":
+            exp_dict = {"modelList":["CAM"],
+                        "configList": ["noFlip"],
+                        "lossList": ["CAMLoss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["MAE"],
+                        "epochs":1000}
+
+        # if exp_name == "OneHead_pascal":
+        #     exp_dict = {"modelList":["OneHead"],
+        #                 "configList": ["noFlip"],
+        #                 "lossList": ["OneHeadLoss"],
+        #                 "datasetList": ["Pascal2012"],
+        #                 "metricList": ["MAE"],
+        #                 "predictList": ["BestDice"],
+        #                 "epochs":1000}
+
+        if exp_name == "OneHeadLoc_pascal":
+            exp_dict = {"modelList":["OneHeadLoc"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadLoss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "OneHeadRandom_pascal":
+            exp_dict = {"modelList":["OneHead"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadRandomLoss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "OneHead_cpAll":
+            exp_dict = {"modelList":["OneHeadLoc", "OneHead"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadLoss"],
+                        "datasetList": ["CityScapesAll"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "OneHead_cp":
+            exp_dict = {"modelList":["OneHead", "OneHeadLoc"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadLoss"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "OneHead_kitti":
+            exp_dict = {"modelList":["OneHeadLoc"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadLoss"],
+                        "datasetList": ["Kitti"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "OneHead_plants":
+            exp_dict = {"modelList":["OneHead","OneHeadLoc"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadLoss"],
+                        "datasetList": ["Plants"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "OneHeadLoc_cp":
+            exp_dict = {"modelList":["OneHeadLoc"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadLoss"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "OneHeadRandom_cp":
+            exp_dict = {"modelList":["OneHeadLoc"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadRandomLoss"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "OneHead_coco2014":
+            exp_dict = {"modelList":["OneHead", "OneHeadLoc"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadLoss"],
+                        "datasetList": ["CocoDetection2014"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "TwoHeads_coco2014":
+            exp_dict = {"modelList":["TwoHeads"],
+                        "configList": ["noFlip"],
+                        "lossList": ["TwoHeadLoss_9_1"],
+                        "datasetList": ["CocoDetection2014"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+
+
+        if exp_name == "TwoHeads_plants_lcfcn":
+            exp_dict = {"modelList":[ "TwoHeads_Plants"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadSumLoss", "OneHeadRBFLoss"],
+                        "datasetList": ["Plants"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "TwoHeads_coco_lcfcn":
+            exp_dict = {"modelList":["TwoHeads_COCO"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadRBFLoss_withSim", "OneHeadRBFLoss_random", "OneHeadSumLoss","OneHeadRBFLoss"],
+                        "datasetList": ["CocoDetection2014"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "TwoHeads_kitti_lcfcn":
+            exp_dict = {"modelList":["TwoHeads_Kitti"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadRBFLoss_withSim", "OneHeadRBFLoss"],
+                        "datasetList": ["Kitti"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "TwoHeads_cp_lcfcn":
+            exp_dict = {"modelList":["TwoHeads_CityScapes"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadRBFLoss_withSim", "OneHeadRBFLoss_random", "OneHeadSumLoss","OneHeadRBFLoss"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "TwoHeads_pascal_lcfcn":
+            exp_dict = {"modelList":["TwoHeads_Pascal"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadRBFLoss", "OneHeadRBFLoss_withSim_noFP",
+                        "OneHeadRBFLoss_multiproposals_noFP",
+                                    "OneHeadRBFLoss_multiproposals",
+                                     "OneHeadRBFLoss_noFP", "OneHeadRBFLoss_withSim"],
+                        "datasetList": ["PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "TwoHeads_prm":
+            exp_dict = {"modelList":["TwoHeads_PRM"],
+                        "configList": ["noFlip"],
+                        "lossList": ["OneHeadRBFLoss"],
+                        "datasetList": ["PascalOriginal"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "TwoHeads_kitti":
+            exp_dict = {"modelList":["TwoHeads"],
+                        "configList": ["noFlip"],
+                        "lossList": ["TwoHeadLoss_9_1"],
+                        "datasetList": ["Kitti"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "TwoHeads_cp":
+            exp_dict = {"modelList":["TwoHeads"],
+                        "configList": ["noFlip"],
+                        "lossList": ["TwoHeadLoss_9_1"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+        if exp_name == "TwoHeads_cp_old":
+            exp_dict = {"modelList":["TwoHeads"],
+                        "configList": ["noFlip"],
+                        "lossList": ["TwoHeadLoss_9_1"],
+                        "datasetList": ["CityScapesOld"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "TwoHeads_plants":
+            exp_dict = {"modelList":["TwoHeads"],
+                        "configList": ["noFlip"],
+                        "lossList": ["TwoHeadLoss_9_1"],
+                        "datasetList": ["Plants"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+
+
+
+        if exp_name == "TwoHeads_search_pascal":
+            configList = []
+            for i in range(-5,6): 
+                for j in range(-5,6): 
+                    configList += ["twoheads_%d_%d" % (i,j)]
+
+            exp_dict = {"modelList":["TwoHeads"],
+                        "configList": configList,
+                        "lossList": ["TwoHeadLoss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+
+
+
+        if exp_name == "cp2lcfcn_points":
+            exp_dict = {"modelList":["CP_LCFCN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["box_loss"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BoxSegment"],
+                        "epochs":1000}
+
+        if exp_name == "pascal2lcfcn_points":
+            exp_dict = {"modelList":["LC_RESFCN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["box_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BoxSegment"],
+                        "epochs":1000}
+
+        if exp_name == "box":
+            exp_dict = {"modelList":["Boxer"],
+                        "configList": ["noFlip"],
+                        "lossList": ["box_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BoxSegment"],
+                        "epochs":1000}
+
+        if exp_name == "dice":
+            exp_dict = {"modelList":["Segmenter"],
+                        "configList": ["noFlip"],
+                        "lossList": ["region_growing_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice"],
+                        "epochs":1000}
+
+        if exp_name == "mp":
+            exp_dict = {"modelList":["Segmenter"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal",
+                        "matching_proposal2",
+                        "matching_proposal3",
+                        "matching_proposal4"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "mp_scratch":
+            exp_dict = {"modelList":["Segmenter_Scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal5",
+                        "matching_proposal6"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "mp_better":
+            exp_dict = {"modelList":["Segmenter_Scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal7",
+                        "matching_proposal8"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+
+
+
+
+
+        if exp_name == "cp_lcfcn":
+            exp_dict = {"modelList":["Res50FCN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["lc_loss"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+
+        if exp_name == "cp_old":
+            exp_dict = {"modelList":["ResEmbedding"],
+                        "configList": ["noFlip"],
+                        "lossList": ["similarity_loss_old"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+        if exp_name == "pascal_old":
+            exp_dict = {"modelList":["ResEmbedding"],
+                        "configList": ["noFlip"],
+                        "lossList": ["similarity_loss_old"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+
+        if exp_name == "pascal_similarity":
+            exp_dict = {"modelList":["ResEmbedding"],
+                        "configList": ["noFlip"],
+                        "lossList": ["similarity_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+        if exp_name == "pascal_similarity3":
+            exp_dict = {"modelList":["ResSimilarity"],
+                        "configList": ["noFlip"],
+                        "lossList": ["similarity_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+
+        if exp_name == "pascal_similarity2":
+            exp_dict = {"modelList":["DoubleResEmbedding"],
+                        "configList": ["noFlip"],
+                        "lossList": ["similarity_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+
+        if exp_name == "cp_similarity":
+            exp_dict = {"modelList":["ResEmbedding"],
+                        "configList": ["noFlip"],
+                        "lossList": ["similarity_loss"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+        if exp_name == "cp":
+            exp_dict = {"modelList":["Segmenter_Scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal7",
+                        "matching_proposal8"],
+                        "datasetList": ["CityScapes"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestCounter"],
+                        "epochs":1000}
+
+        if exp_name == "hybrid":
+            exp_dict = {"modelList":["Hybrid"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal_hybrid1",
+                        "matching_proposal_hybrid2"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice","BestObjectness_hybrid", "BestObjectness"],
+                        "epochs":1000}
+
+
+        if exp_name == "hybrid_scratch":
+            exp_dict = {"modelList":["Hybrid_scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal_hybrid3",
+                        "matching_proposal_hybrid2"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice","BestObjectness_hybrid", "BestObjectness"],
+                        "epochs":1000}
+
+
+        if exp_name == "matching_proposal1":
+            exp_dict = {"modelList":["Segmenter"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "matching_proposal2":
+            exp_dict = {"modelList":["Segmenter"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal2"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+        if exp_name == "matching_proposal3":
+            exp_dict = {"modelList":["Segmenter"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal3"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "matching_proposal4":
+            exp_dict = {"modelList":["Segmenter"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal4"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "matching_proposal5":
+            exp_dict = {"modelList":["Segmenter_Scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal5"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+
+        if exp_name == "matching_proposal6":
+            exp_dict = {"modelList":["Segmenter_Scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal6"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "matching_proposal_hybrid1":
+            exp_dict = {"modelList":["Hybrid"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal_hybrid1"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice","BestObjectness_hybrid", "BestObjectness"],
+                        "epochs":1000}
+        if exp_name == "matching_proposal_hybrid2":
+            exp_dict = {"modelList":["Hybrid"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal_hybrid2"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice","BestObjectness_hybrid", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "matching_proposal_hybrid3":
+            exp_dict = {"modelList":["Hybrid_scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal_hybrid3"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice","BestObjectness_hybrid", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "similarity":
+            exp_dict = {"modelList":["Hybrid_scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal_hybrid3"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice","BestObjectness_hybrid", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "matching_proposal_hybrid4":
+            exp_dict = {"modelList":["Hybrid_scratch"],
+                        "configList": ["noFlip"],
+                        "lossList": ["matching_proposal_hybrid2"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList": ["BestDice","BestObjectness_hybrid", "BestObjectness"],
+                        "epochs":1000}
+
+        if exp_name == "glance":
+            exp_dict = {"modelList":["Glance_LCFCN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["glance_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList":["GlanceBestBox"],
+                        "epochs":1000}
+
+
+        if exp_name == "BestObjectness":
+            exp_dict = {"modelList":["LC_RESFCN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["proposal_pretrained_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "predictList":["BestObjectness"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+
+        if exp_name == "UpperBound":
+            exp_dict = {"modelList":["LC_RESFCN"],
+                        "configList": ["noFlip"],
+                        "lossList": ["proposal_pretrained_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "predictList":["UpperBound"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "plants":
+            exp_dict = {"modelList":["PSPNet"],
+                        "configList": ["basic"],
+                        "lossList": ["recursive_blob_loss",
+                                     "water_loss", 
+                                     "sp_water_loss"],
+                        "datasetList": ["Plants"],
+                        "metricList": ["SBD"],
+                        "epochs":1000}
+
+
+        if exp_name == "pascal_yolo":
+            exp_dict = {"modelList":["YOLO"],
+                        "configList": ["yolo"],
+                        "lossList": ["yolo_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "recursive":
+            exp_dict = {"modelList":["LC_RESFCN1"],
+                        "configList": ["wtp"],
+                        "lossList": ["fixed_recursive_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "recursive2":
+            exp_dict = {"modelList":["LC_RESFCN2"],
+                        "configList": ["wtp"],
+                        "lossList": ["fixed_recursive_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "pascal":
+            exp_dict = {"modelList":["Res50FCN","PSPNet"],
+                        "configList": ["wtp"],
+                        "lossList": ["water_loss",
+                                "sp_water_loss", "recursive_blob_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["MAE"],
+                        "predictList":["None"],
+                        "epochs":1000}
+
+
+        if exp_name == "pascal_unet":
+            exp_dict = {"modelList":["UNet"],
+                        "configList": ["unet"],
+                        "lossList": ["unet_loss"],
+                        "datasetList": ["Pascal2012"],
+                        "metricList": ["mIoU"],
+                        "epochs":1000}
+
+
+        if exp_name == "pascal_unetpoint":
+            exp_dict = {"modelList":["ResDextrPoint", "UNetPoint"],
+                        "configList": ["unet"],
+                        "lossList": ["unetpoint_loss"],
+                        "datasetList": ["PascalClicksSingle"],
+                        "metricList": ["mIoU"],
+                        "epochs":1000}
+
+        if exp_name == "pascal_clicks2":
+            exp_dict = {"modelList":["ResDextr3"],
+                        "configList": ["click"],
+                        "lossList": ["seg_balanced_loss"],
+                        "datasetList": ["PascalClicksFocus"],
+                        "metricList": ["mIoU"],
+                        "epochs":1000}
+
+
+        if exp_name == "unet_clicks":
+            exp_dict = {"modelList":["UNet"],
+                        "configList": ["click"],
+                        "lossList": ["unet_loss"],
+                        "datasetList": ["PascalClicksSingle"],
+                        "metricList": ["mIoU"],
+                        "epochs":1000}
+
+
+        if exp_name == "pascal_clicks":
+            exp_dict = {"modelList":["ResDextr"],
+                        "configList": ["click"],
+                        "lossList": ["seg_balanced_loss"],
+                        "datasetList": ["PascalClicks"],
+                        "metricList": ["mIoU"],
+                        "epochs":1000}
+
+        if exp_name == "cross_fish":
+            exp_dict = {"configList": ["mcnn_1000", "resfcn_1000", "fcn8_1000", "glance_1000"],
+                        "lossList": ["water_loss", "water_loss_B"],
+                        "datasetList": ["ExceptLafrage", "ExceptComoLake"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+
+        if exp_name == "weakly_count":
+            exp_dict = {"configList": ["resfcn_1000", "fcn8_1000", "glance_1000"],
+                        "lossList": ["image_loss"],
+                        "datasetList": ["ComoLake"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "weakly_detection":
+            exp_dict = {"configList": ["mcnn_1000", "resfcn_1000", "fcn8_1000", "glance_1000"],
+                        "lossList": ["water_loss"],
+                        "datasetList": ["ComoLake"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+        if exp_name == "weakly_instance":
+            exp_dict = {"configList": ["mcnn_1000", "resfcn_1000", "fcn8_1000", "glance_1000"],
+                        "lossList": ["water_loss"],
+                        "datasetList": ["ExceptLafrage", "ExceptComoLake"],
+                        "metricList": ["MAE"],
+                        "epochs":1000}
+
+
+        # Override if needed
+        exp_dict["configList"] = args.configList or exp_dict["configList"]
+        exp_dict["metricList"] = args.metricList or exp_dict["metricList"]
+        exp_dict["datasetList"] = args.datasetList or exp_dict["datasetList"]
+        exp_dict["lossList"] = args.lossList or exp_dict["lossList"]  
+        exp_dict["modelList"] = args.modelList or exp_dict["modelList"]  
+        exp_dict["predictList"] = args.predictList or exp_dict["predictList"]  
+
+        return exp_dict

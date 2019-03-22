@@ -4,7 +4,7 @@ import numpy as np
 import json
 import torch
 import numpy as np
-from addons.pycocotools import mask as maskUtils
+
 from torchvision import transforms
 from torchvision.transforms import functional as ft
 import skimage.transform as stf
@@ -24,67 +24,6 @@ from PIL import Image, ImageOps
 import torch
 mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
-def normalizeImageSingle():
-    return transforms.Compose([
-              transforms.ToTensor(),
-              transforms.Normalize(*mean_std)])
-
-def rgbNormalize():
-    return transforms.Compose([
-              transforms.ToTensor(),
-              transforms.Normalize(*mean_std)])
-
-def bgrNormalize():
-    PIXEL_MEAN = [102.9801, 115.9465, 122.7717]
-    PIXEL_STD = [1., 1., 1.]
-
-    to_bgr_transform = transforms.Lambda(lambda x: x * 255)
-    to_bgr_switch_transform = transforms.Lambda(lambda x: x[[2, 1, 0]])
-    normalize_transform = transforms.Normalize(
-            mean=PIXEL_MEAN, std=PIXEL_STD
-        )
-
-    return transforms.Compose([
-              transforms.ToTensor(),
-              to_bgr_transform,
-              to_bgr_switch_transform,
-              normalize_transform
-              ])
-
-class Resize(object):
-    def __init__(self, min_size=800, max_size=1333):
-        self.min_size = min_size
-        self.max_size = max_size
-
-    # modified from torchvision to add support for max size
-    def get_size(self, image_size):
-        w, h = image_size
-        size = self.min_size
-        max_size = self.max_size
-        
-        if max_size is not None:
-            min_original_size = float(min((w, h)))
-            max_original_size = float(max((w, h)))
-            if max_original_size / min_original_size * size > max_size:
-                size = int(round(max_size * min_original_size / max_original_size))
-
-        if (w <= h and w == size) or (h <= w and h == size):
-            return (h, w)
-
-        if w < h:
-            ow = size
-            oh = int(size * h / w)
-        else:
-            oh = size
-            ow = int(size * w / h)
-
-        return (oh, ow)
-
-    def __call__(self, image, target):
-        size = self.get_size(image.size)
-        image = F.resize(image, size)
-        target = target.resize(image.size)
-        return image, target
 
 def normalizeResize():
        return ComposeJoint(
@@ -106,14 +45,6 @@ def normalizeResize2():
               ToLong() ]
         ])
 
-
-def normalizeImage():
-       return ComposeJoint(
-                    [
-                         [transforms.ToTensor()],
-                         [transforms.Normalize(*mean_std)],
-                         [None]
-                    ])
 
 def normalize():
        return ComposeJoint(
@@ -142,9 +73,9 @@ def scaleNormalzie():
 def Te_WTP():
        return ComposeJoint(
                     [
-                         [transforms.ToTensor(), None],
-                         [transforms.Normalize(*mean_std), None],
-                         [None, ToLong()]
+                         [transforms.ToTensor(), None, None, None],
+                         [transforms.Normalize(*mean_std), None, None, None],
+                         [None, ToLong(), ToLong(), ToLong()]
                     ])
 
 
@@ -729,119 +660,3 @@ def convert_labels_to_one_hot_encoding(labels, number_of_classes):
     one_hot_encoding.scatter_(dim=labels_dims_number, index=labels_, value=1)
     
     return one_hot_encoding.byte()
-
-import misc as ms
-def cropTensor(image, bbox, pad=0):
-  c, h, w = image.shape
-  if isinstance(bbox, dict):
-    x, y, wb, hb = map(int, [bbox["x"], bbox["y"], bbox["w"], bbox["h"]])
-  else:
-    x, y, wb, hb = bbox
-
-  # crop bbox b from inp tensor
-  # x, y = np.round(b[1])+1, torch.round(b[2])+1
-  # w, h = torch.round(b[3]), torch.round(b[4])
-  cropped = torch.ones(c, hb, wb)*pad
- 
-
-  xo1, yo1, xo2, yo2 = x, y, wb+x,hb+y
-  xc1, yc1, xc2, yc2 = 0, 0, wb, hb
-
-  # compute box on binary mask inp and cropped mask out
-  if x < 0:
-    xo1=0
-    xc1=-x
-
-  if y < 0:
-    yo1=0 
-    yc1=-y 
-
-  if x+wb > w:
-    xo2=w 
-    xc2=xc2-(x+wb-w) 
-
-  if y+hb > h:
-    yo2=h 
-    yc2=yc2-(y+hb-h) 
-
-  xo, yo, wo, ho = xo1, yo1, xo2-xo1, yo2-yo1
-  xc, yc, wc, hc = xc1, yc1, xc2-xc1, yc2-yc1
-
-  if yc+hc > hb:
-    hc = hb-yc 
-
-  if xc+wc > wb:
-    wc = wb-xc
-
-  if yo+ho > h:
-    ho = h-yo
-
-  if xo+wo > w:
-    wo = w-xo
-
-  # cropped[:,yc:yc+hc]; cropped[:,:,xc:xc+wc]
-  # image[:,yo:yo+ho]; image[:,:,xo:xo+wo]
-  # print(cropped[:,yc:yc+hc, xc:xc+wc].shape, image[:,yo:yo+ho,xo:xo+wo].shape)
-  cropped[:,yc:yc+hc, xc:xc+wc]= image[:,yo:yo+ho,xo:xo+wo]
-
-  return cropped
-
-import torch.nn.functional as F
-import ann_utils as au
-
-def cropMask(ann, bbox, h, w, sz):
-  mask = au.ann2mask(ann)["mask"]
-    
-  scale = sz / bbox["w"]
-  mask_scale = F.interpolate(torch.FloatTensor(mask[None]), scale_factor=scale,
-                             mode="nearest")
-
-  bboxS = {k:bbox[k]*scale for k in bbox}
-
-  mask_crop = cropTensor(mask_scale, bboxS)
-    
-  mask_final = (F.interpolate(mask_crop[None], size=(sz,sz),
-                             mode="bilinear").squeeze() > 0.5).long()
-
-  return mask_final
-
-
-# def default_collate(batch):
-#     r"""Puts each data field into a tensor with outer dimension batch size"""
-
-#     error_msg = "batch must contain tensors, numbers, dicts or lists; found {}"
-#     elem_type = type(batch[0])
-#     if isinstance(batch[0], torch.Tensor):
-#         out = None
-#         if _use_shared_memory:
-#             # If we're in a background process, concatenate directly into a
-#             # shared memory tensor to avoid an extra copy
-#             numel = sum([x.numel() for x in batch])
-#             storage = batch[0].storage()._new_shared(numel)
-#             out = batch[0].new(storage)
-#         return torch.stack(batch, 0, out=out)
-#     elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
-#             and elem_type.__name__ != 'string_':
-#         elem = batch[0]
-#         if elem_type.__name__ == 'ndarray':
-#             # array of string classes and object
-#             if re.search('[SaUO]', elem.dtype.str) is not None:
-#                 raise TypeError(error_msg.format(elem.dtype))
-
-#             return torch.stack([torch.from_numpy(b) for b in batch], 0)
-#         if elem.shape == ():  # scalars
-#             py_type = float if elem.dtype.name.startswith('float') else int
-#             return numpy_type_map[elem.dtype.name](list(map(py_type, batch)))
-#     elif isinstance(batch[0], int_classes):
-#         return torch.LongTensor(batch)
-#     elif isinstance(batch[0], float):
-#         return torch.DoubleTensor(batch)
-#     elif isinstance(batch[0], string_classes):
-#         return batch
-#     elif isinstance(batch[0], container_abcs.Mapping):
-#         return {key: default_collate([d[key] for d in batch]) for key in batch[0]}
-#     elif isinstance(batch[0], container_abcs.Sequence):
-#         transposed = zip(*batch)
-#         return [default_collate(samples) for samples in transposed]
-
-#     raise TypeError((error_msg.format(type(batch[0]))))
