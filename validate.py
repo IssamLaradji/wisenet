@@ -51,7 +51,6 @@ def validate(main_dict, train_only=False):
   train_set[0]
 
   # Model  
-  
   if reset == "reset" or not ms.model_exists(main_dict):
     model, opt, history = ms.init_model_and_opt(main_dict, 
                                                 train_set) 
@@ -61,7 +60,6 @@ def validate(main_dict, train_only=False):
     model, opt, history = ms.load_latest_model_and_opt(main_dict, 
                                                        train_set) 
     print("RESUMING EPOCH %d/%d" % (history["epoch"], epochs)) 
-  
   
 
   # Get Dataloader
@@ -86,10 +84,12 @@ def validate(main_dict, train_only=False):
     last_validation = history["val"][-1]["epoch"]
 
   for epoch in range(start_epoch + 1, epochs):
-   
+    import ipdb; ipdb.set_trace()  # breakpoint a3e81a5d //
+    
     # %%%%%%%%%%% 2. VALIDATION PHASE %%%%%%%%%%%%"
     validation_phase_mAP(history, main_dict, model, val_set, predict_name, 
                                               epoch)
+    import ipdb; ipdb.set_trace()  # breakpoint 952cb52f //
 
 
 
@@ -139,5 +139,5 @@ def validation_phase_mAP(history, main_dict, model, val_set, predict_name, epoch
         history["best_model"]["0.5"] <= val_dict["0.5"]):
 
       history["best_model"] = val_dict
-
+    
     return history

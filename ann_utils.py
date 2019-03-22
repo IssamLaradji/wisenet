@@ -1079,7 +1079,7 @@ def dataset2annList(model, dataset,
 
     loader = data.DataLoader(dataset, 
                    batch_size=1, 
-                   num_workers=1, 
+                   num_workers=0, 
                    drop_last=False)
 
     n_batches = len(loader)
@@ -1089,6 +1089,7 @@ def dataset2annList(model, dataset,
     for i, batch in enumerate(loader):
         print(i, "/", n_batches)
         pred_dict = model.predict(batch, predict_method=predict_method)
+        
         assert batch["name"][0] not in model.trained_batch_names
         
         if n_val is None or n_val == n_images:

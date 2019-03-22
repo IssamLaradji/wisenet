@@ -48,7 +48,7 @@ class LCFCN_BO(bm.BaseModel):
     def predict(self, batch, predict_method="blobs", proposal_type="sharp"):
         # self.sanity_checks(batch)
         self.eval()
-
+        predict_method = "blob_annList"
         n,c,h,w = batch["images"].shape
         
         O = self(batch["images"].cuda())
@@ -60,6 +60,15 @@ class LCFCN_BO(bm.BaseModel):
             return {"pointList":blob_dict["pointList"],
                     "blobs":blob_dict['blobs'],
                     "probs":blob_dict["probs"]}
+
+        ###
+        if predict_method == "blob_annList":
+            annList = blob_dict["annList"]
+            for ann in annList:
+                ann["image_id"] = batch["name"][0]
+                ann["score"] = 1.0
+
+            return {"annList":annList}
 
         if predict_method == 'blobs_probs':
             blobs = self.get_blobs(O.max(1)[1])
@@ -75,7 +84,8 @@ class LCFCN_BO(bm.BaseModel):
 
 
         if len(head_pointList) == 0:
-            return {"blobs": np.zeros((h,w), int), "annList":[]}
+            return {"blobs": np.zeros((h,w), int), 
+                    "annList":[]}
 
         pred_dict = au.pointList2BestObjectness(head_pointList, batch)
         return pred_dict

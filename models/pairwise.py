@@ -247,7 +247,7 @@ class OneHead(bm.BaseModel):
         categoryDict = blobs_categoryDict["categoryDict"]
 
         # blobs, categoryDict, propDict = prototype_predict(model, batch, visualize=False)
-
+        
         if predict_method == "BestDice":
             blob_dict = au.blobs2BestDice(blobs, categoryDict, 
                                           propDict, batch)

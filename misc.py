@@ -2087,12 +2087,12 @@ def model_exists(main_dict):
 def get_dataloader(dataset, batch_size, sampler_class=None):
   if sampler_class is None:
     trainloader = data.DataLoader(dataset, batch_size=batch_size, 
-                                shuffle=True, num_workers=min(batch_size,2), 
+                                shuffle=True, num_workers=0, 
                                 drop_last=False)
   else:
     trainloader = data.DataLoader(dataset, batch_size=batch_size, 
                                 sampler=sampler_class(dataset), 
-                                num_workers=min(batch_size,2), 
+                                num_workers=0, 
                                 drop_last=False)
 
   return trainloader
