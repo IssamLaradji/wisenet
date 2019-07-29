@@ -80,7 +80,8 @@ class PRM(bm.BaseModel):
             # class_response_maps.requires_grad=True
 
             if self.sub_pixel_locating_factor > 1:
-                class_response_maps = F.upsample(class_response_maps, scale_factor=self.sub_pixel_locating_factor, mode='bilinear', align_corners=True)
+                class_response_maps = F.upsample(class_response_maps, scale_factor=self.sub_pixel_locating_factor,
+                                                 mode='bilinear', align_corners=True)
             # aggregate responses from informative receptive fields estimated via class peak responses
             peak_list, aggregation = peak_stimulation(class_response_maps, win_size=self.win_size, peak_filter=self.peak_filter)
 
