@@ -39,7 +39,7 @@ def main():
                       default=None)
   parser.add_argument('-l','--lossList', nargs="+",
                       default=None)
-  parser.add_argument('-d','--datasetList', nargs="+",
+  parser.add_argument('-d','--datasetList',  nargs="+",
                       default=None)
   parser.add_argument('-metric','--metricList', nargs="+",
                       default=None)
