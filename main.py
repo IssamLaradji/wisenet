@@ -45,7 +45,7 @@ def main():
                       default=None)
   parser.add_argument('-model','--modelList', nargs="+",
                       default=None)
-  parser.add_argument('-p','--predictList', nargs="+",
+  parser.add_argument('-p','--predictList',  nargs="+",
                       default=None)
 
   args = parser.parse_args()
