@@ -5,7 +5,7 @@
 
 #### It uses an embedding network and a proposal generator to learn what objects look like.</h5>
 
-[[Paper](https://ieeexplore.ieee.org/document/9190782)] 
+[[Paper](https://ieeexplore.ieee.org/document/9190782)][[Slides](docs/1314.pdf)] 
 
 ![](docs/wisenet.png)
 
